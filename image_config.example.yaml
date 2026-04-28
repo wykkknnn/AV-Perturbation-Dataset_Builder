@@ -1,0 +1,47 @@
+run_name: stargan_image_aug_v1
+input_dir: CNN_synth_testset/stargan
+output_dir: outputs
+
+# one of: both, real, fake
+apply_to: both
+
+# Set true to allow writing into an existing outputs/run_name directory.
+overwrite: false
+
+image_extensions:
+  - .png
+  - .jpg
+  - .jpeg
+
+# Input folder names under input_dir.
+label_dirs:
+  - 0_real
+  - 1_fake
+
+# Map folder names to logical labels for apply_to.
+label_map:
+  0_real: real
+  1_fake: fake
+
+perturbations:
+  gaussian_blur:
+    enabled: true
+    radii: [1.5, 3.0]
+    # apply_to: fake
+
+  jpeg_compression:
+    enabled: true
+    qualities: [70, 40]
+    # apply_to: both
+
+  gaussian_noise:
+    enabled: true
+    sigmas: [4, 8]
+
+  resize_down_up:
+    enabled: true
+    scales: [0.75, 0.5]
+
+  brightness:
+    enabled: false
+    factors: [0.8, 1.2]

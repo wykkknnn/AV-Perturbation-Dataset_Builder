@@ -1,0 +1,45 @@
+run_name: first_av_perturbation_run
+input_dir: test_original
+output_dir: outputs
+
+# one of: both, real, fake
+apply_to: both
+
+# Set true to allow writing into an existing outputs/run_name directory.
+overwrite: false
+
+video_extensions:
+  - .mp4
+
+perturbations:
+  video_compression:
+    enabled: true
+    crf: [23, 32, 40]
+    preset: medium
+
+  resize_down_up:
+    enabled: true
+    scales: [0.5, 0.25]
+    reencode_crf: 18
+    preset: medium
+
+  gaussian_blur:
+    enabled: true
+    kernel_sizes: [3, 7]
+    reencode_crf: 18
+    preset: medium
+
+  video_noise:
+    enabled: true
+    sigmas: [8, 16]
+    reencode_crf: 18
+    preset: medium
+
+  audio_compression:
+    enabled: true
+    bitrates: ["64k", "32k"]
+
+  audio_noise:
+    enabled: true
+    snr_db: [20, 10]
+    output_bitrate: "128k"
