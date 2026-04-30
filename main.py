@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import shutil
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -53,14 +54,25 @@ def main() -> int:
     args = parse_args()
 
     try:
-        config = load_config(args.config)
-        _apply_cli_overrides(config, args)
+        base_config = load_config(args.config)
+        _apply_cli_overrides(base_config, args)
+        mode = str(
+            base_config.get("mode")
+            or _resolve_mode(str(base_config.get("input_dir", "")))
+        )
+        selected_config_path = _pick_mode_config_path(mode, args.config)
+        config = _reload_mode_config(base_config, selected_config_path)
+        if mode == "image":
+            return _run_image_pipeline(args, config, selected_config_path)
         _validate_required_config(config)
         _check_tools("ffmpeg", "ffprobe")
 
         specs = build_perturbation_specs(config)
+        specs = _filter_specs_by_mode(specs, mode)
         if not specs:
-            raise ConfigError("No perturbations are enabled in config.yaml.")
+            raise ConfigError(
+                f"No perturbations are enabled for mode '{mode}' in config."
+            )
 
         run_dir = prepare_run_directory(
             config["output_dir"],
@@ -69,6 +81,8 @@ def main() -> int:
             overwrite=bool(config.get("overwrite", False)),
         )
         logger = setup_logger(run_dir)
+        logger.info("Selected mode: %s", mode)
+        logger.info("Selected config: %s", selected_config_path)
 
         samples = scan_dataset(
             config["input_dir"],
@@ -99,11 +113,87 @@ def main() -> int:
         return 2
 
 
+def _resolve_mode(input_dir: str) -> str:
+    name = Path(input_dir).name.lower()
+    if name in {"image", "images"}:
+        return "image"
+    if name in {"audio", "audios"}:
+        return "audio"
+    return "video"
+
+
+def _filter_specs_by_mode(
+    specs: list[PerturbationSpec],
+    mode: str,
+) -> list[PerturbationSpec]:
+    if mode == "audio":
+        return [spec for spec in specs if spec.audio_params]
+    if mode == "video":
+        return [spec for spec in specs if spec.video_params]
+    return specs
+
+
+def _run_image_pipeline(
+    args: argparse.Namespace,
+    config: dict[str, object],
+    config_path: str,
+) -> int:
+    cmd = [sys.executable, "image_enhancer.py", "--config", config_path]
+    if config.get("input_dir"):
+        cmd += ["--input-dir", str(config["input_dir"])]
+    if config.get("output_dir"):
+        cmd += ["--output-dir", str(config["output_dir"])]
+    if config.get("run_name"):
+        cmd += ["--run-name", str(config["run_name"])]
+    if bool(config.get("overwrite", False)):
+        cmd.append("--overwrite")
+    if args.prompt_paths:
+        cmd.append("--prompt-paths")
+
+    print(f"[INFO] Routing to image_enhancer.py with config: {config_path}")
+    completed = subprocess.run(cmd, check=False)
+    return int(completed.returncode)
+
+
+def _pick_mode_config_path(mode: str, fallback_config: str) -> str:
+    fallback = Path(fallback_config)
+    mode_map = {
+        "image": "image_config.yaml",
+        "audio": "audio_config.yaml",
+        "video": "video_config.yaml",
+    }
+    preferred_name = mode_map.get(mode)
+    if not preferred_name:
+        return str(fallback)
+
+    preferred = fallback.with_name(preferred_name)
+    if preferred.is_file():
+        return str(preferred)
+    return str(fallback)
+
+
+def _reload_mode_config(
+    base_config: dict[str, object],
+    selected_config_path: str,
+) -> dict[str, object]:
+    selected = load_config(selected_config_path)
+    for key in ("input_dir", "output_dir", "run_name", "overwrite", "mode"):
+        if key in base_config:
+            selected[key] = base_config[key]
+    return selected
+
+
 def _apply_cli_overrides(config: dict[str, object], args: argparse.Namespace) -> None:
     if args.prompt_paths:
         _prompt_path_overrides(config)
+    elif not args.input_dir:
+        mode, input_dir = _prompt_mode_and_input_dir()
+        config["mode"] = mode
+        config["input_dir"] = input_dir
+        config["output_dir"] = "outputs"
     if args.input_dir:
         config["input_dir"] = args.input_dir
+        config["mode"] = _resolve_mode(args.input_dir)
     if args.output_dir:
         config["output_dir"] = args.output_dir
     if args.run_name:
@@ -133,6 +223,21 @@ def _prompt_value(field_name: str, current_value: str) -> str:
     return entered or current_value
 
 
+def _prompt_mode_and_input_dir() -> tuple[str, str]:
+    while True:
+        mode = input("要增强的内容类型 (video/audio/image): ").strip().lower()
+        if mode in {"video", "audio", "image"}:
+            break
+        print("请输入 video、audio 或 image。")
+
+    while True:
+        input_dir = input("请输入要处理的文件夹路径: ").strip()
+        if input_dir:
+            break
+        print("文件夹路径不能为空。")
+    return mode, input_dir
+
+
 def _validate_required_config(config: dict[str, object]) -> None:
     if not config.get("input_dir"):
         raise ConfigError("`input_dir` is required in config.yaml or via --input-dir.")
@@ -155,7 +260,7 @@ def _process_one(
     spec: PerturbationSpec,
     logger,
 ) -> str:
-    if not _should_apply(sample.label, spec.apply_to):
+    if not _should_apply(sample.logical_label, spec.apply_to):
         status = copy_unperturbed(sample, output_path)
         logger.info("%s -> %s [%s]", sample.original_path, output_path, status)
         return status

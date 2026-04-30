@@ -1,4 +1,4 @@
-"""Dataset scanning utilities for real/fake video test sets."""
+"""Dataset scanning utilities for 0_real/1_fake style video test sets."""
 
 from __future__ import annotations
 
@@ -16,7 +16,15 @@ DEFAULT_VIDEO_EXTENSIONS: tuple[str, ...] = (
     ".m4v",
 )
 
-LABELS: tuple[str, str] = ("real", "fake")
+LOGICAL_LABELS: tuple[str, str] = ("real", "fake")
+OUTPUT_LABEL_DIRS: dict[str, str] = {
+    "real": "0_real",
+    "fake": "1_fake",
+}
+LABEL_ALIASES: dict[str, tuple[str, ...]] = {
+    "real": ("0_real", "real"),
+    "fake": ("1_fake", "fake"),
+}
 
 
 @dataclass(frozen=True)
@@ -24,16 +32,17 @@ class VideoSample:
     """One input video and the class folder it came from."""
 
     original_path: Path
-    label: str
+    label_dir: str
+    logical_label: str
     relative_path: Path
 
 
 def scan_dataset(
     input_dir: str | Path,
     video_extensions: Sequence[str] | None = None,
-    labels: Iterable[str] = LABELS,
+    labels: Iterable[str] = LOGICAL_LABELS,
 ) -> list[VideoSample]:
-    """Scan input_dir/{real,fake} recursively for video files."""
+    """Scan input_dir label folders recursively for video files."""
 
     root = Path(input_dir).expanduser()
     if not root.is_dir():
@@ -45,11 +54,12 @@ def scan_dataset(
     }
 
     samples: list[VideoSample] = []
-    for label in labels:
-        class_dir = root / label
-        if not class_dir.is_dir():
+    for logical_label in labels:
+        class_dir = _resolve_class_dir(root, logical_label)
+        if class_dir is None:
             raise FileNotFoundError(
-                f"Expected class directory is missing: {class_dir}"
+                f"Expected class directory is missing for label '{logical_label}'. "
+                f"Tried: {_candidate_dirs(root, logical_label)}"
             )
 
         for path in sorted(class_dir.rglob("*")):
@@ -57,9 +67,22 @@ def scan_dataset(
                 samples.append(
                     VideoSample(
                         original_path=path.resolve(),
-                        label=label,
+                        label_dir=OUTPUT_LABEL_DIRS.get(logical_label, logical_label),
+                        logical_label=logical_label,
                         relative_path=path.relative_to(class_dir),
                     )
                 )
 
     return samples
+
+
+def _resolve_class_dir(root: Path, label: str) -> Path | None:
+    for name in LABEL_ALIASES.get(label, (label,)):
+        candidate = root / name
+        if candidate.is_dir():
+            return candidate
+    return None
+
+
+def _candidate_dirs(root: Path, label: str) -> list[str]:
+    return [str(root / name) for name in LABEL_ALIASES.get(label, (label,))]

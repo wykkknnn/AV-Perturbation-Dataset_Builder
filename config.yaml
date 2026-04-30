@@ -1,0 +1,45 @@
+run_name: video_enhance_run
+input_dir: video
+output_dir: outputs
+
+# one of: both, real, fake
+apply_to: both
+
+# Set true to allow writing into an existing outputs/run_name directory.
+overwrite: true
+
+video_extensions:
+  - .mp4
+
+perturbations:
+  video_compression:
+    enabled: true
+    crf: [32]
+    preset: medium
+
+  resize_down_up:
+    enabled: true
+    scales: [0.5]
+    reencode_crf: 18
+    preset: medium
+
+  gaussian_blur:
+    enabled: true
+    kernel_sizes: [3]
+    reencode_crf: 18
+    preset: medium
+
+  video_noise:
+    enabled: true
+    sigmas: [8]
+    reencode_crf: 18
+    preset: medium
+
+  audio_compression:
+    enabled: true
+    bitrates: ["64k"]
+
+  audio_noise:
+    enabled: ture
+    snr_db: [20]
+    output_bitrate: "128k"

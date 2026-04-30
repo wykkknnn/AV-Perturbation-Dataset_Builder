@@ -43,5 +43,5 @@ perturbations:
     scales: [0.75, 0.5]
 
   brightness:
-    enabled: false
+    enabled: true
     factors: [0.8, 1.2]
