@@ -26,22 +26,22 @@ label_map:
 perturbations:
   gaussian_blur:
     enabled: true
-    radii: [1.5, 3.0]
+    radii: [1.5, 3.0, 5.0]
     # apply_to: fake
 
   jpeg_compression:
     enabled: true
-    qualities: [70, 40]
+    qualities: [70, 40, 20]
     # apply_to: both
 
   gaussian_noise:
     enabled: true
-    sigmas: [4, 8]
+    sigmas: [4, 8, 10]
 
   resize_down_up:
     enabled: true
-    scales: [0.75, 0.5]
+    scales: [0.75, 0.5, 0.375]
 
   brightness:
     enabled: true
-    factors: [0.8, 1.2]
+    factors: [0.5, 0.8, 1.2, 1.5]

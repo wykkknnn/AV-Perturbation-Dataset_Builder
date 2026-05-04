@@ -24,17 +24,29 @@ Install ffmpeg and ffprobe on your machine, then install the Python dependency:
 pip install -r requirements.txt
 ```
 
-## Run
+## Run (Unified Entry)
 
 ```bash
-cp config.example.yaml config.yaml
 python main.py --config config.yaml
 ```
+
+After launching, the CLI asks two questions:
+
+1. `Content type to enhance (video/audio/image):`
+2. `Enter the folder path to process:`
+
+Routing behavior:
+
+- `video` -> uses `video_config.yaml`
+- `audio` -> uses `audio_config.yaml`
+- `image` -> uses `image_config.yaml` (delegates to `image_enhancer.py`)
+
+If a mode-specific config is missing, it falls back to the file passed with `--config`.
 
 Useful overrides:
 
 ```bash
-python main.py --config config.yaml --input-dir test_original --run-name exp_crf_only
+python main.py --config config.yaml --input-dir video --run-name exp_video_only
 ```
 
 Interactive path input in CLI (no config edits needed):
@@ -43,7 +55,7 @@ Interactive path input in CLI (no config edits needed):
 python main.py --config config.yaml --prompt-paths
 ```
 
-`apply_to` can be set globally or inside any perturbation block:
+`apply_to` can be set globally or inside any perturbation block (`real`, `fake`, `both`):
 
 ```yaml
 apply_to: both
@@ -70,17 +82,17 @@ outputs/run_name/
   metadata.csv
   logs.txt
   enhancement_name_strength/
-    real/
-    fake/
+    0_real/
+    1_fake/
 ```
 
 `metadata.csv` records `original_path`, `output_path`, `label`,
 `enhancement_name`, `strength`, `apply_to`, `video_params`, `audio_params`,
 and `status`.
 
-## Image perturbation pipeline (for folders like stargan)
+## Direct Image Pipeline (Optional)
 
-Use `image_enhancer.py` for image-only datasets (no video/audio stream).
+You can still call `image_enhancer.py` directly for image-only datasets.
 
 Expected input layout example:
 
@@ -95,7 +107,6 @@ CNN_synth_testset/stargan/
 ### Run image perturbation
 
 ```bash
-cp image_config.example.yaml image_config.yaml
 python image_enhancer.py --config image_config.yaml
 ```
 

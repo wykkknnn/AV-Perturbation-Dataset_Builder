@@ -225,16 +225,16 @@ def _prompt_value(field_name: str, current_value: str) -> str:
 
 def _prompt_mode_and_input_dir() -> tuple[str, str]:
     while True:
-        mode = input("要增强的内容类型 (video/audio/image): ").strip().lower()
+        mode = input("Content type to enhance (video/audio/image): ").strip().lower()
         if mode in {"video", "audio", "image"}:
             break
-        print("请输入 video、audio 或 image。")
+        print("Please enter video, audio, or image.")
 
     while True:
-        input_dir = input("请输入要处理的文件夹路径: ").strip()
+        input_dir = input("Enter the folder path to process: ").strip()
         if input_dir:
             break
-        print("文件夹路径不能为空。")
+        print("Folder path cannot be empty.")
     return mode, input_dir
 
 
